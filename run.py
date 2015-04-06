@@ -44,10 +44,10 @@ def answerQuestion(userId, questionId, answer):
 def index():
     """Respond with the number of text messages sent between two parties."""
 
+    # session.clear()
     askiiUrl = keys.askiiRoute()
     numbers_only_regex = re.compile('^[0-9]+$')
 
-    # session.clear()
     step = session.get('step', 0)
     counter = session.get('counter', 0)
     currentQuestion = session.get('currentQuestion', None)
@@ -61,6 +61,10 @@ def index():
     userId = user.get("uri", None)
     if userId:
         userId = userId.split("/")[-1]
+
+    if startTime and studyDuration:
+        if time.time() - session["startTime"] > (session["studyDuration"]+2)*60:
+            session.clear()
 
     if user == False:
         # start Welcome thread for new user
@@ -77,6 +81,7 @@ def index():
 
     elif step == 1:
         # check if user had a valid time response and start timer
+        # timer is getting stuck here
         studyDuration = request.values.get('Body')
         is_number = numbers_only_regex.match(studyDuration)
         if not is_number:
@@ -96,7 +101,7 @@ def index():
             session["studyDuration"] = int(studyDuration)
             return str(resp)
 
-    else:
+    elif step > 1:
         # answer first, then get next question
         if time.time() - session["startTime"] < session["studyDuration"]*60:
             if currentQuestion:
@@ -111,6 +116,7 @@ def index():
             message = "Nice work! You've studied for "+ str(studyDuration) + "! Come back and study soon."
             resp = twilio.twiml.Response()
             resp.sms(message)
+            session.clear()
             return str(resp)
 
     return str('done')

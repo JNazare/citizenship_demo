@@ -4,6 +4,7 @@ import twilio.twiml
 import keys
 import re
 import json
+import time
  
 # The session object makes use of a secret key.
 SECRET_KEY = keys.sessionKeys()
@@ -50,7 +51,9 @@ def index():
     step = session.get('step', 0)
     counter = session.get('counter', 0)
     currentQuestion = session.get('currentQuestion', None)
- 
+    startTime = session.get('startTime', None)
+    studyDuration = session.get('studyDuration', None)
+
     from_number = request.values.get('From')
     userRequest = requests.get(askiiUrl+'/users/phone_num/'+from_number)
     user = userRequest.json()["user"]
@@ -74,8 +77,8 @@ def index():
 
     elif step == 1:
         # check if user had a valid time response and start timer
-        body = request.values.get('Body')
-        is_number = numbers_only_regex.match(body)
+        studyDuration = request.values.get('Body')
+        is_number = numbers_only_regex.match(studyDuration)
         if not is_number:
             message = "Oops! Please enter a number in minutes. For example, if you have 10 minutes to study, please enter 10."
             resp = twilio.twiml.Response()
@@ -89,18 +92,26 @@ def index():
             counter += 1
             session["step"] = step
             session["counter"] = counter
+            session["startTime"] = time.time()
+            session["studyDuration"] = int(studyDuration)
             return str(resp)
 
     else:
         # answer first, then get next question
-        if currentQuestion:
-            answer = answerQuestion(userId, currentQuestion, 0)
-        message = getQuestion(userId, counter)
-        resp = twilio.twiml.Response()
-        resp.sms(message)
-        counter += 1
-        session["counter"] = counter
-        return str(resp)
+        if time.time() - session["startTime"] < session["studyDuration"]*60:
+            if currentQuestion:
+                answer = answerQuestion(userId, currentQuestion, 0)
+            message = getQuestion(userId, counter)
+            resp = twilio.twiml.Response()
+            resp.sms(message)
+            counter += 1
+            session["counter"] = counter
+            return str(resp)
+        else:
+            message = "Nice work! You've studied for "+ str(studyDuration) + "! Come back and study soon."
+            resp = twilio.twiml.Response()
+            resp.sms(message)
+            return str(resp)
 
     return str('done')
 

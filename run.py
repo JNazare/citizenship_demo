@@ -51,8 +51,8 @@ def index():
     step = session.get('step', 0)
     counter = session.get('counter', 0)
     currentQuestion = session.get('currentQuestion', None)
-    startTime = session.get('startTime', None)
-    studyDuration = session.get('studyDuration', None)
+    session["startTime"] = session.get('startTime', None)
+    session["studyDuration"] = session.get('studyDuration', None)
 
     from_number = request.values.get('From')
     userRequest = requests.get(askiiUrl+'/users/phone_num/'+from_number)
@@ -62,9 +62,12 @@ def index():
     if userId:
         userId = userId.split("/")[-1]
 
-    if startTime and studyDuration:
+    if session["startTime"] and session["studyDuration"]:
         if time.time() - session["startTime"] > (session["studyDuration"]+2)*60:
-            session.clear()
+            session["step"] = 0
+            session["counter"] = 0
+            session["startTime"] = None
+            session["studyDuration"] = None
 
     if user == False:
         # start Welcome thread for new user
@@ -103,21 +106,28 @@ def index():
 
     elif step > 1:
         # answer first, then get next question
-        if time.time() - session["startTime"] < session["studyDuration"]*60:
-            if currentQuestion:
-                answer = answerQuestion(userId, currentQuestion, 0)
-            message = getQuestion(userId, counter)
-            resp = twilio.twiml.Response()
-            resp.sms(message)
-            counter += 1
-            session["counter"] = counter
-            return str(resp)
-        else:
-            message = "Nice work! You've studied for "+ str(studyDuration) + "! Come back and study soon."
-            resp = twilio.twiml.Response()
-            resp.sms(message)
-            session.clear()
-            return str(resp)
+        # JULES check that these times exist!! >> if startTime and studyDuration:
+        if session["startTime"] and session["studyDuration"]:
+            if time.time() - session["startTime"] < session["studyDuration"]*60:
+                if currentQuestion:
+                    answer = answerQuestion(userId, currentQuestion, 0)
+                message = getQuestion(userId, counter)
+                resp = twilio.twiml.Response()
+                resp.sms(message)
+                counter += 1
+                session["counter"] = counter
+                return str(resp)
+
+        if session["startTime"] and session["studyDuration"]:
+            if time.time() - session["startTime"] >= session["studyDuration"]*60:
+                message = "Nice work! You've studied for "+ str(studyDuration) + "! Come back and study soon."
+                resp = twilio.twiml.Response()
+                resp.sms(message)
+                session["step"] = 0
+                session["counter"] = 0
+                session["startTime"] = None
+                session["studyDuration"] = None
+                return str(resp)
 
     return str('done')
 

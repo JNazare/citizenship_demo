@@ -5,6 +5,7 @@ import keys
 import re
 import json
 import time
+import os
  
 # The session object makes use of a secret key.
 SECRET_KEY = keys.sessionKeys()
@@ -71,6 +72,8 @@ def timeoutSession():
 @app.route("/", methods=['GET', 'POST'])
 def index():
     """Respond with the number of text messages sent between two parties."""
+    if request.values.get('From', None) == None:
+        return 'Welcome to the US Naturalization Certification Demo'
 
     # session.clear()
     askiiUrl = keys.askiiRoute()
@@ -213,4 +216,5 @@ def index():
 
  
 if __name__ == "__main__":
-    app.run(debug=True)
+    port = int(os.environ.get('PORT', 5000))
+    app.run(host='0.0.0.0', port=port, debug=True)

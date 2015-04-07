@@ -16,13 +16,38 @@ def formatQuestion(questionDict):
     questionText = questionDict.get("question", "")
     infoUri = questionDict.get("info_uri", "")
     message = questionText + "\n\nYou can find the answer here: " + infoUri
-    ## !!! add in content links once they exist
+    return message
+
+def formatHint(questionId):
+    askiiUrl = keys.askiiRoute()
+    questionRequest = requests.get(askiiUrl+'/questions/'+questionId)
+    question = questionRequest.json()["question"]
+    hint = question.get("hint", "")
+    message = "Sorry, that's incorrect. Here's a hint: " + hint
+    return message
+
+def formatInfoHint(questionId):
+    askiiUrl = keys.askiiRoute()
+    questionRequest = requests.get(askiiUrl+'/questions/'+questionId)
+    question = questionRequest.json()["question"]
+    infoUri = question.get("info_uri", "")
+    message = "Sorry, that's still incorrect. I'd reccomend looking at the information on the link one more time: " + infoUri
     return message
 
 def getIdFromUri(uri):
     if uri:
         return uri.split("/")[-1]
     return None
+
+def incorrentAndGetQuestion(userId, count):
+    newQuestionMessage = getQuestion(userId, count)
+    message = "Sorry, that is incorrect. We will come back to this question soon. Let's look at another question.\n\n"+newQuestionMessage
+    return message
+
+def correctAndGetQuestion(userId, count):
+    newQuestionMessage = getQuestion(userId, count)
+    message = "Correct! Next question.\n\n"+newQuestionMessage
+    return message
 
 def getQuestion(userId, count):
     headers = {"Content-Type": "application/json"}
@@ -34,13 +59,16 @@ def getQuestion(userId, count):
     return formatQuestion(question)
 
 def answerQuestion(userId, questionId, answer):
-    print answer
     headers = {"Content-Type": "application/json"}
     data = json.dumps({"answer": str(answer)})
     url = keys.askiiRoute()+'/users/'+userId+"/"+questionId
     answerRequest = requests.post(url, headers=headers, data=data)
-    ## !!! eventually check answer on API side and return 0 or 1
-    return 'done'
+    answerBool = False
+    if answerRequest.status_code == 200:
+        answerJson = answerRequest.json()
+        # print answerJson
+        answerBool = answerJson.get('result', False)
+    return answerBool
 
 def outOfTime():
     session["startTime"] = session.get('startTime', None)
@@ -139,9 +167,36 @@ def index():
                     return str(resp)
             elif session.get("step", 0) > 1:
                 userText = request.values.get('Body', None)
+                session["attempt"] = session.get("attempt", 0)
                 if session["currentQuestion"] and userText:
                     answer = answerQuestion(session["userId"], session["currentQuestion"], userText)
-                message = getQuestion(session["userId"], session["counter"])
+                    print answer
+                    if answer == False:
+                        if session["attempt"]==0:
+                            message = formatHint(session["currentQuestion"])
+                            resp = twilio.twiml.Response()
+                            resp.sms(message)
+                            session["attempt"]+=1
+                            return str(resp)
+                            # give hint
+                        elif session["attempt"]==1:
+                            message = formatInfoHint(session["currentQuestion"])
+                            resp = twilio.twiml.Response()
+                            resp.sms(message)
+                            session["attempt"]+=1
+                            return str(resp)
+
+                        elif session["attempt"]==2:
+                            message = incorrentAndGetQuestion(session["userId"], session["counter"])
+                            resp = twilio.twiml.Response()
+                            resp.sms(message)
+                            session["counter"] += 1
+                            session["attempt"]=0
+                            return str(resp)
+                            # come back to question, get next question
+
+                # add in yay! correct
+                message = correctAndGetQuestion(session["userId"], session["counter"])
                 resp = twilio.twiml.Response()
                 resp.sms(message)
                 session["counter"] += 1

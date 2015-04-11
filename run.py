@@ -11,6 +11,9 @@ import os
 SECRET_KEY = keys.sessionKeys()
 app = Flask(__name__)
 app.config.from_object(__name__)
+askiiUrl = keys.askiiRoute()
+key = keys.askiiKey()
+headers = {"Content-Type": "application/json"}
 
 def formatQuestion(questionDict):
     questionText = questionDict.get("question", "")
@@ -19,16 +22,14 @@ def formatQuestion(questionDict):
     return message
 
 def formatHint(questionId):
-    askiiUrl = keys.askiiRoute()
-    questionRequest = requests.get(askiiUrl+'/questions/'+questionId)
+    questionRequest = requests.get(askiiUrl+'/questions/'+questionId+"?key="+key)
     question = questionRequest.json()["question"]
     hint = question.get("hint", "")
     message = "Sorry, that's incorrect. Here's a hint: " + hint
     return message
 
 def formatInfoHint(questionId):
-    askiiUrl = keys.askiiRoute()
-    questionRequest = requests.get(askiiUrl+'/questions/'+questionId)
+    questionRequest = requests.get(askiiUrl+'/questions/'+questionId+"?key="+key)
     question = questionRequest.json()["question"]
     infoUri = question.get("info_uri", "")
     message = "Sorry, that's still incorrect. I'd reccomend looking at the information on the link one more time: " + infoUri
@@ -50,25 +51,31 @@ def correctAndGetQuestion(userId, count):
     return message
 
 def getQuestion(userId, count):
-    headers = {"Content-Type": "application/json"}
     data=json.dumps({"count": count})
-    questionRequest = requests.post(keys.askiiRoute()+'/next/'+userId, headers=headers, data=data)
+    questionRequest = requests.post(askiiUrl+'/next/'+userId+"?key="+key, headers=headers, data=data)
     question = questionRequest.json()
     questionId = getIdFromUri(question.get("uri", None))
     session["currentQuestion"] = questionId
     return formatQuestion(question)
 
+def checkRegex(regex_str, answer):
+    regex_obj = re.compile(regex_str, re.IGNORECASE)
+    answer = str(answer).strip().lower()
+    if regex_obj.search(answer) != None:
+        return 1
+    return 0
+
 def answerQuestion(userId, questionId, answer):
-    headers = {"Content-Type": "application/json"}
-    data = json.dumps({"answer": str(answer)})
-    url = keys.askiiRoute()+'/users/'+userId+"/"+questionId
+    questionJson = requests.get(askiiUrl+'/questions/'+questionId+"?key="+key, headers=headers).json()["question"]
+    num_answer = checkRegex(questionJson["regex"], str(answer))
+    bool_answer = True if num_answer == 1 else False
+    data = json.dumps({"answer": str(num_answer)})
+    url = askiiUrl+'/users/'+userId+"/"+questionId+"?key="+key
     answerRequest = requests.post(url, headers=headers, data=data)
-    answerBool = False
+    updatedAnswer = False
     if answerRequest.status_code == 200:
-        answerJson = answerRequest.json()
-        # print answerJson
-        answerBool = answerJson.get('result', False)
-    return answerBool
+        return bool_answer
+    return None
 
 def outOfTime():
     session["startTime"] = session.get('startTime', None)
@@ -79,13 +86,14 @@ def outOfTime():
     return False
 
 def lookupUser(phone_num):
-    askiiUrl = keys.askiiRoute()
-    userRequest = requests.get(askiiUrl+'/users/phone_num/'+phone_num)
-    user = userRequest.json()["user"]
-    name = user.get("name", "")
-    userId = getIdFromUri(user.get("uri", None))
-    session["userId"] = userId
-    return user
+    userRequest = requests.get(askiiUrl+'/users/phone_num/'+phone_num+"?key="+key)
+    user = userRequest.json().get("user", None)
+    if user:
+        name = user.get("name", "")
+        userId = getIdFromUri(user.get("uri", None))
+        session["userId"] = userId
+        return user
+    return False
 
 def endSession():
     message = "Nice work! You've studied for "+ str(session["studyDuration"]) + "! Come back and study soon."
@@ -99,6 +107,11 @@ def timeoutSession():
             session["step"] = 0
     return 
 
+def createUser(name, phone_num):
+    data = json.dumps({"name": name, "phone_num": phone_num})
+    userRequest = requests.post(askiiUrl+'/users?key='+key, headers=headers, data=data)
+    return userRequest.json()["user"]
+
 @app.route("/", methods=['GET', 'POST'])
 def index():
     """Respond with the number of text messages sent between two parties."""
@@ -106,7 +119,6 @@ def index():
         return 'Welcome to the US Naturalization Certification Demo'
 
     # session.clear()
-    askiiUrl = keys.askiiRoute()
     numbers_only_regex = re.compile('^[0-9]+$')
 
     # get all session fields
@@ -135,7 +147,24 @@ def index():
         # if no user
         if user == False:
             # start welcome messages to get user name
-            pass
+            timeoutSession()
+            session["welcomeStep"] = session.get("welcomeStep", 0)
+            if session["welcomeStep"] == 0:
+                message = "Welcome to Askii! To get started, what is your first name?"
+                resp = twilio.twiml.Response()
+                resp.sms(message)
+                session["welcomeStep"] += 1
+                return str(resp)
+            if session["welcomeStep"] == 1:
+                name = request.values.get('Body')
+                user = createUser(name, phone_num)
+                del session["welcomeStep"]
+                message = "Welcome, "+user.get("name", "")+"! How much time do you have to study today?"
+                resp = twilio.twiml.Response()
+                resp.sms(message)
+                session["step"] = 1
+                session["prevTime"] = time.time()
+                return str(resp)
         else:
             timeoutSession()
             if session.get("step", 0) == 0:
@@ -170,7 +199,7 @@ def index():
                 session["attempt"] = session.get("attempt", 0)
                 if session["currentQuestion"] and userText:
                     answer = answerQuestion(session["userId"], session["currentQuestion"], userText)
-                    print answer
+                    # print answer
                     if answer == False:
                         if session["attempt"]==0:
                             message = formatHint(session["currentQuestion"])

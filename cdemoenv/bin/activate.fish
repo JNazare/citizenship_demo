@@ -32,7 +32,7 @@ end
 # unset irrelevant variables
 deactivate nondestructive
 
-set -gx VIRTUAL_ENV "/var/www/port82/cdemoenv"
+set -gx VIRTUAL_ENV "/Users/Juliana/Repos/citizenship_demo/cdemoenv"
 
 set -gx _OLD_VIRTUAL_PATH $PATH
 set -gx PATH "$VIRTUAL_ENV/bin" $PATH

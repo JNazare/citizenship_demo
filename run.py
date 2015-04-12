@@ -33,7 +33,7 @@ def formatInfoHint(questionId):
     # questionRequest = requests.get(askiiUrl+'/questions/'+questionId+"?key="+key)
     # question = questionRequest.json()["question"]
     # infoUri = question.get("info_uri", "")
-    infoUri = url_for('get_info', question_id=question_id, _external=True)
+    infoUri = url_for('get_info', question_id=questionId, _external=True)
     message = "Sorry, that's still incorrect. I'd reccomend looking at the information on the link one more time: " + infoUri
     return message
 

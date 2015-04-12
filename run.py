@@ -18,7 +18,7 @@ headers = {"Content-Type": "application/json"}
 def formatQuestion(questionDict):
     questionText = questionDict.get("question", "")
     question_id = questionDict.get("uri", "").split("/")[-1]
-    infoUri = url_for('index', question_id=question_id, _external=True)
+    infoUri = url_for('get_info', question_id=question_id, _external=True)
     message = questionText + "\n\nYou can find the answer here: " + infoUri
     return message
 

@@ -30,9 +30,10 @@ def formatHint(questionId):
     return message
 
 def formatInfoHint(questionId):
-    questionRequest = requests.get(askiiUrl+'/questions/'+questionId+"?key="+key)
-    question = questionRequest.json()["question"]
-    infoUri = question.get("info_uri", "")
+    # questionRequest = requests.get(askiiUrl+'/questions/'+questionId+"?key="+key)
+    # question = questionRequest.json()["question"]
+    # infoUri = question.get("info_uri", "")
+    infoUri = url_for('get_info', question_id=question_id, _external=True)
     message = "Sorry, that's still incorrect. I'd reccomend looking at the information on the link one more time: " + infoUri
     return message
 
@@ -237,7 +238,8 @@ def index():
 @app.route('/info/<question_id>', methods=['GET'])
 #@auth.login_required
 def get_info(question_id):
-    questionRequest = askiiUrl+"/questions/"+question_id+"?key="+key
+    print question_id
+    questionRequest = requests.get(askiiUrl+"/questions/"+question_id+"?key="+key, headers=headers)
     question = questionRequest.json()["question"]
     return render_template('info.html', question=question)
 

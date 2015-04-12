@@ -1,14 +1,16 @@
 <html>
 <head>
-	<link rel="stylesheet" href="/static/css/style.css">
 	<meta charset="utf-8">
   	<!-- If you delete this meta tag World War Z will become a reality -->
   	<meta name="viewport" content="width=device-width, initial-scale=1.0">
   	<title>Askii</title>
+  	<link rel="stylesheet" href="/static/css/style.css">
 </head>
 	<body>
 	    {% if question.content.image_url %}
-	    	<img src="{{ question.content.image_url }}" width="100%" class="content-image">
+	    	<center>
+	    		<img src="{{ question.content.image_url }}" width="25%" class="content-image">
+	    	</center>
 	    {% endif %}
 	    <p> 
 	    	{{ question.content.text }}

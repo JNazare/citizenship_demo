@@ -17,7 +17,7 @@ headers = {"Content-Type": "application/json"}
 
 def formatQuestion(questionDict):
     questionText = questionDict.get("question", "")
-    infoUri = questionDict.get("info_uri", "")
+    infoUri = questionDict.get("info_uri", "")+"?key="+key
     message = questionText + "\n\nYou can find the answer here: " + infoUri
     return message
 

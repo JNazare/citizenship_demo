@@ -235,7 +235,7 @@ def index():
     
     return str('done')
 
-@app.route('/info/<question_id>', methods=['GET'])
+@app.route('/info/<question_id>', methods=['GET', 'POST'])
 #@auth.login_required
 def get_info(question_id):
     print question_id

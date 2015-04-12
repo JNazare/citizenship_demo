@@ -1,5 +1,5 @@
 import requests
-from flask import Flask, request, redirect, session
+from flask import Flask, request, redirect, session, render_template, url_for
 import twilio.twiml
 import keys
 import re
@@ -17,7 +17,8 @@ headers = {"Content-Type": "application/json"}
 
 def formatQuestion(questionDict):
     questionText = questionDict.get("question", "")
-    infoUri = questionDict.get("info_uri", "")+"?key="+key
+    question_id = questionDict.get("uri", "").split("/")[-1]
+    infoUri = url_for('index', question_id=question_id, _external=True)
     message = questionText + "\n\nYou can find the answer here: " + infoUri
     return message
 
@@ -232,6 +233,13 @@ def index():
                 return str(resp)
     
     return str('done')
+
+@app.route('/info/<question_id>', methods=['GET'])
+#@auth.login_required
+def get_info(question_id):
+    questionRequest = askiiUrl+"/questions/"+question_id+"?key="+key
+    question = questionRequest.json()["question"]
+    return render_template('info.html', question=question)
 
  
 if __name__ == "__main__":
